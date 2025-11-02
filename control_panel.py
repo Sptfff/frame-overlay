@@ -95,6 +95,19 @@ class ControlPanel(QWidget):
             self.guide_checkboxes[guide_id] = checkbox
             layout.addWidget(checkbox)
         
+        # Control de desplazamiento de espiral (solo visible cuando la espiral está activa)
+        spiral_offset_layout = QHBoxLayout()
+        spiral_offset_label = QLabel("   ↔️ Desplazamiento Espiral:")
+        self.spiral_offset_slider = QSlider(Qt.Horizontal)
+        self.spiral_offset_slider.setRange(0, 14)
+        self.spiral_offset_slider.setValue(0)
+        self.spiral_offset_slider.valueChanged.connect(self.change_spiral_offset)
+        self.spiral_offset_value_label = QLabel("0")
+        spiral_offset_layout.addWidget(spiral_offset_label)
+        spiral_offset_layout.addWidget(self.spiral_offset_slider)
+        spiral_offset_layout.addWidget(self.spiral_offset_value_label)
+        layout.addLayout(spiral_offset_layout)
+        
         group.setLayout(layout)
         return group
     
@@ -264,6 +277,11 @@ class ControlPanel(QWidget):
         self.overlay.set_opacity(opacity)
         self.opacity_value_label.setText(f"{value}%")
     
+    def change_spiral_offset(self, value):
+        """Cambia el desplazamiento horizontal de la espiral"""
+        self.overlay.set_spiral_offset(value)
+        self.spiral_offset_value_label.setText(f"{value}")
+    
     def toggle_clickthrough(self, state):
         """Activa/desactiva clic a través"""
         self.overlay.enable_click_through(state == Qt.Checked)
@@ -304,10 +322,14 @@ class ControlPanel(QWidget):
             for guide in self.overlay.guides:
                 self.overlay.guides[guide] = True
         
-        # Actualizar checkboxes
+        # Actualizar checkboxes SIN disparar eventos
+        # Bloquear señales temporalmente para evitar llamadas a toggle_guide()
         for guide_id, checkbox in self.guide_checkboxes.items():
+            checkbox.blockSignals(True)  # Bloquear señales
             checkbox.setChecked(self.overlay.guides[guide_id])
+            checkbox.blockSignals(False)  # Desbloquear señales
         
+        # Forzar actualización visual del overlay
         self.overlay.update()
     
     def save_current_preset(self):
@@ -362,7 +384,10 @@ class ControlPanel(QWidget):
                 if guide_id in self.overlay.guides:
                     self.overlay.guides[guide_id] = enabled
                     if guide_id in self.guide_checkboxes:
+                        # Bloquear señales para evitar disparar eventos
+                        self.guide_checkboxes[guide_id].blockSignals(True)
                         self.guide_checkboxes[guide_id].setChecked(enabled)
+                        self.guide_checkboxes[guide_id].blockSignals(False)
         
         # Aplicar color
         if 'color' in config:
@@ -374,12 +399,18 @@ class ControlPanel(QWidget):
         # Aplicar grosor
         if 'line_width' in config:
             self.overlay.set_line_width(config['line_width'])
+            # Bloquear señales del spinbox también
+            self.width_spinbox.blockSignals(True)
             self.width_spinbox.setValue(config['line_width'])
+            self.width_spinbox.blockSignals(False)
         
         # Aplicar opacidad
         if 'opacity' in config:
             self.overlay.set_opacity(config['opacity'])
+            # Bloquear señales del slider
+            self.opacity_slider.blockSignals(True)
             self.opacity_slider.setValue(int(config['opacity'] * 100))
+            self.opacity_slider.blockSignals(False)
         
         self.overlay.update()
     

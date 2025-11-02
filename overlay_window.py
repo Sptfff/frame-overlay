@@ -29,6 +29,9 @@ class OverlayWindow(QWidget):
         self.window_opacity = 0.8
         self.fill_opacity = 30  # Para áreas de relleno
         
+        # Configuración de la espiral
+        self.spiral_offset_x = 0  # Desplazamiento horizontal de la espiral (0-14)
+        
         self.init_ui()
         
     def init_ui(self):
@@ -171,75 +174,173 @@ class OverlayWindow(QWidget):
     def draw_golden_spiral(self, painter, width, height):
         """Dibuja cuadrados de Fibonacci (espiral áurea)"""
         
-        # Secuencia de Fibonacci: cada número es la suma de los dos anteriores
-        # 1+1=2, 1+2=3, 2+3=5, 3+5=8, 5+8=13, 8+13=21, etc.
+        # Secuencia de Fibonacci
         fib = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
         
-        # Calcular el tamaño base: usar el lado más pequeño de la pantalla
-        # para que los cuadrados siempre quepan en pantalla
+        # Calcular el tamaño base y la unidad de escala
         size = min(width, height)
+        unit = size / fib[-1]  # 89 es el último número
         
-        # Calcular la unidad: dividir el tamaño total por el último número de Fibonacci
-        # Esto escala todos los cuadrados proporcionalmente para que llenen la pantalla
-        unit = size / fib[-1]  # fib[-1] es 89, el último número de la lista
+        # Posición inicial (centrado verticalmente, alineado a la izquierda)
+        start_x = 0
+        start_y = (height - size) / 2
         
-        # Calcular la posición inicial (comenzar desde la derecha de la pantalla)
-        if width < height:
-            # Si la pantalla es vertical (más alta que ancha)
-            # Colocar cuadrados en el borde derecho, centrados verticalmente
-            x = width - size
-            y = (height - size) / 2
-        else:
-            # Si la pantalla es horizontal (más ancha que alta)
-            # Colocar cuadrados en el borde derecho, centrados verticalmente
-            x = width - size
-            y = (height - size) / 2
-        
-        # Guardar el estilo de línea actual para restaurarlo después
+        # Guardar el estilo de línea actual
         old_pen = painter.pen()
-        
-        # Configurar el estilo de línea para los cuadrados:
-        # - Color: el color configurado por el usuario (self.guide_color)
-        # - Grosor: la mitad del grosor de línea configurado
         painter.setPen(QPen(self.guide_color, self.line_width // 2))
         
-        # Iterar sobre la secuencia de Fibonacci desde el más grande al más pequeño
-        # range(len(fib) - 1, 1, -1) genera: 10, 9, 8, 7, 6, 5, 4, 3, 2
-        # Empezamos con el cuadrado más grande (89) y terminamos con el más pequeño (2)
-        for i in range(len(fib) - 1, 1, -1):
-            # Calcular el lado del cuadrado actual
-            # Multiplicar el número de Fibonacci por la unidad para escalar
-            side = fib[i] * unit
+        # Definir las coordenadas fijas de cada cuadrado en la espiral
+        # Formato: (número_fibonacci, x_offset, y_offset)
+        # Los offsets son en unidades de Fibonacci, se multiplicarán por 'unit'
+        
+        squares = [
+            # Cuadrado 89: Esquina superior izquierda (base)
+            (89, 0, 0),
             
-            # Dibujar el cuadrado en la posición actual (x, y)
-            # int() convierte a entero para coordenadas de píxeles exactas
+            # Cuadrado 55: A la derecha del 89
+            (55, 89, 0),
+            
+            # Cuadrado 34: Debajo del 55, alineado a la derecha
+            (34, 89+55-34, 55),
+            
+            # Cuadrado 21: A la izquierda del 34, debajo del 89
+            (21, 89, 55+13),
+            
+            # Cuadrado 13: Arriba del 21, a la izquierda
+            (13, 89, 55),
+            
+            # Cuadrado 8: A la derecha del 13
+            (8, 89+ 13, 55),
+            
+            # Cuadrado 5: Arriba del 8
+            (5, 89+3+13, 55+8),
+            
+            # Cuadrado 3: A la izquierda del 5
+            (3, 89+13, 55+8+2),
+            
+            # Cuadrado 2: Debajo del 3
+            (2, 89+13, 55+8),
+
+            #Cuadro 1: Arriba del 2 se supone
+            (1,89+13+2,55+9),
+
+            #Cuaddro 1: A la derecha del 1
+            (1,89+13+2,55+8),
+        ]
+        
+        # Dibujar cada cuadrado en su posición fija
+        for side_fib, offset_x, offset_y in squares:
+            side = side_fib * unit
+            # Aplicar el desplazamiento horizontal de la espiral
+            x = start_x + (offset_x + self.spiral_offset_x) * unit
+            y = start_y + offset_y * unit
             painter.drawRect(int(x), int(y), int(side), int(side))
+        
+        # ===== CURVA DE LA ESPIRAL =====
+        # Cada arco es 1/4 de círculo que conecta la esquina de un cuadrado con la esquina del siguiente
+        # Formato: (radio_fib, centro_x_offset, centro_y_offset, ángulo_inicio, ángulo_extensión)
+        # Los ángulos en Qt: 0° = derecha (3 o'clock), 90° = arriba (12 o'clock)
+        # Los ángulos se especifican en 1/16 de grado (por eso se multiplican por 16)
+        
+        # Configurar un grosor ligeramente mayor para la curva
+        painter.setPen(QPen(self.guide_color, self.line_width))
+        
+        spiral_arcs = [
+            # Arco 1: De esquina inferior izquierda del 89 → esquina superior derecha del 55
+            # Centro: esquina inferior derecha del cuadrado 89 en posición (89, 89)
+            # Radio = 89 unidades
+            # Desde la izquierda (180°) hacia arriba (90°) = -90° (sentido antihorario)
+            (89, 89, 89, 180*16, -90*16),
             
-            # Calcular la dirección de crecimiento de la espiral
-            # La espiral rota en sentido antihorario: derecha → abajo → izquierda → arriba
-            # direction será 0, 1, 2, o 3 dependiendo de la iteración
-            direction = (len(fib) - 1 - i) % 4
+            # Arco 2: De esquina superior izquierda del 55 → esquina inferior derecha del 34
+            # Cuadrado 55 está en (89, 0), cuadrado 34 está en (110, 55)
+            # Centro: esquina superior derecha del 55 en posición (89+55, 55)
+            # Radio = 55 unidades
+            # Desde arriba (90°) hacia la derecha (0°) = -90° (sentido antihorario)
+            (55, 89, 55, 90*16, -90*16),
             
-            # Calcular la posición del siguiente cuadrado según la dirección
-            if direction == 0:
-                # Dirección 0: El siguiente cuadrado va ABAJO del actual
-                # Mover Y hacia abajo sumando el lado del cuadrado actual
-                y = y + side
-                
-            elif direction == 1:
-                # Dirección 1: El siguiente cuadrado va a la IZQUIERDA del actual
-                # Mover X hacia la izquierda restando el lado del siguiente cuadrado
-                x = x - fib[i-1] * unit
-                
-            elif direction == 2:
-                # Dirección 2: El siguiente cuadrado va ARRIBA del actual
-                # Mover Y hacia arriba restando el lado del siguiente cuadrado
-                y = y - fib[i-1] * unit
-                
-            else:
-                # Dirección 3: El siguiente cuadrado va a la DERECHA del actual
-                # Mover X hacia la derecha sumando el lado del cuadrado actual
-                x = x + side
+            # Arco 3: De esquina superior derecha del 34 → esquina inferior izquierda del 21
+            # Cuadrado 34 está en (110, 55), cuadrado 21 está en (89, 68)
+            # Centro: esquina superior izquierda del 34 en posición (110, 55)
+            # Radio = 34 unidades
+            # Desde la derecha (0°) hacia abajo (270°) = -90° (sentido antihorario)
+            (34, 110, 55, 0*16, -90*16),
+            
+            # Arco 4: De esquina inferior derecha del 21 → esquina superior izquierda del 13
+            # Cuadrado 21 está en (89, 68), cuadrado 13 está en (89, 55)
+            # Centro: esquina inferior izquierda del 21 en posición (89, 68+21=89)
+            # Radio = 21 unidades
+            # Desde abajo (270°) hacia la izquierda (180°) = -90° (sentido antihorario)
+            (21, 89+21, 55+13, 270*16, -90*16),
+            
+            # Arco 5: De esquina inferior izquierda del 13 → esquina superior derecha del 8
+            # Cuadrado 13 está en (89, 55), cuadrado 8 está en (102, 55)
+            # Centro: esquina inferior derecha del 13 en posición (89+13=102, 55+13=68)
+            # Radio = 13 unidades
+            # Desde la izquierda (180°) hacia arriba (90°) = -90° (sentido antihorario)
+            (13, 102, 68, 180*16, -90*16),
+            
+            # Arco 6: De esquina superior izquierda del 8 → esquina inferior derecha del 5
+            # Cuadrado 8 está en (102, 55), cuadrado 5 está en (105, 63)
+            # Centro: esquina superior derecha del 8 en posición (102+8=110, 55+8=63)
+            # Radio = 8 unidades
+            # Desde arriba (90°) hacia la derecha (0°) = -90° (sentido antihorario)
+            (8, 89+13, 63, 90*16, -90*16),
+            
+            # Arco 7: De esquina superior derecha del 5 → esquina inferior izquierda del 3
+            # Cuadrado 5 está en (105, 63), cuadrado 3 está en (102, 65)
+            # Centro: esquina superior izquierda del 5 en posición (105, 63)
+            # Radio = 5 unidades
+            # Desde la derecha (0°) hacia abajo (270°) = -90° (sentido antihorario)
+            (5, 105, 63, 0*16, -90*16),
+            
+            # Arco 8: De esquina inferior derecha del 3 → esquina superior izquierda del 2
+            # Cuadrado 3 está en (102, 65), cuadrado 2 está en (102, 63)
+            # Centro: esquina inferior izquierda del 3 en posición (102, 65+3=68)
+            # Radio = 3 unidades
+            # Desde abajo (270°) hacia la izquierda (180°) = -90° (sentido antihorario)
+            (3, 89+13+3, 55+10, 270*16, -90*16),
+
+            # Arco 9: esquina inferior izquierda del 2 → esquina superior izquierda del 1
+            # Cuadrado 2 está en (102, 63), cuadrado 1 está en (102, 60)
+            # Centro: esquina inferior izquierda del 2 en posición (102, 63+3=66)
+            # Radio = 3 unidades
+            # Desde abajo (270°) hacia la izquierda (180°) = -90° (sentido antihorario)
+            (2, 89+13+2, 55+8+2, 180*16, -90*16),
+
+            # Arco 10: esquina inferior izquierda del 1 → esquina superior izquierda del 0
+            # Cuadrado 1 está en (102, 60), cuadrado 0 está en (102, 58)
+            # Centro: esquina inferior izquierda del 1 en posición (102, 60+3=63)
+            # Radio = 3 unidades
+            # Desde abajo (270°) hacia la izquierda (180°) = -90° (sentido antihorario)
+            (1, 89+13+2, 55+8+1, 90*16, -90*16),
+
+            # Arco 11: esquina inferior izquierda del 1 → esquina superior izquierda del 0
+            # Cuadrado 1 está en (102, 60), cuadrado 0 está en (102, 58)
+            # Centro: esquina inferior izquierda del 1 en posición (102, 60+3=63)
+            # Radio = 3 unidades
+            # Desde abajo (270°) hacia la izquierda (180°) = -90° (sentido antihorario)
+            (1, 89+13+2, 55+8+1, 0*16, -90*16),
+        ]
+        
+        # Dibujar cada arco de la espiral
+        for radius_fib, center_x_offset, center_y_offset, start_angle, span_angle in spiral_arcs:
+            radius = radius_fib * unit
+            # Aplicar el desplazamiento horizontal de la espiral
+            center_x = start_x + (center_x_offset + self.spiral_offset_x) * unit
+            center_y = start_y + center_y_offset * unit
+            
+            # drawArc necesita un rectángulo que contenga el círculo
+            # El rectángulo va desde (centro - radio) hasta (centro + radio)
+            rect_x = center_x - radius
+            rect_y = center_y - radius
+            rect_size = radius * 2
+            
+            painter.drawArc(
+                int(rect_x), int(rect_y), 
+                int(rect_size), int(rect_size),
+                start_angle, span_angle
+            )
         
         # Restaurar el estilo de línea original
         painter.setPen(old_pen)
@@ -303,6 +404,11 @@ class OverlayWindow(QWidget):
         self.window_opacity = opacity
         alpha = int(255 * opacity)
         self.guide_color.setAlpha(alpha)
+        self.update()
+    
+    def set_spiral_offset(self, offset):
+        """Establece el desplazamiento horizontal de la espiral (0-14)"""
+        self.spiral_offset_x = offset
         self.update()
     
     def enable_click_through(self, enabled):

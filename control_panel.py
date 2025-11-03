@@ -20,21 +20,130 @@ class ControlPanel(QWidget):
         
         self.init_ui()
         self.load_presets()
+    
+    def setup_theme(self):
+        """Configura el tema de colores de la interfaz"""
+        # ========== CONFIGURACIÓN DE COLORES ==========
+        # Puedes modificar estos valores para cambiar el tema
+        
+        self.theme = {
+            # Colores principales
+            'primary': '#2C3E50',      # Azul oscuro
+            'secondary': '#34495E',    # Gris azulado
+            'accent': '#3498DB',       # Azul brillante
+            'success': '#27AE60',      # Verde
+            'danger': '#E74C3C',       # Rojo
+            
+            # Colores de fondo
+            'bg_main': '#ECF0F1',      # Gris muy claro
+            'bg_group': '#FFFFFF',     # Blanco
+            'bg_hover': '#BDC3C7',     # Gris medio
+            
+            # Colores de texto
+            'text_primary': '#2C3E50', # Texto principal
+            'text_secondary': '#7F8C8D', # Texto secundario
+            'text_light': '#FFFFFF',   # Texto claro
+            
+            # Colores de botones
+            'btn_primary_bg': '#3498DB',
+            'btn_primary_hover': '#2980B9',
+            'btn_danger_bg': '#E74C3C',
+            'btn_danger_hover': '#C0392B',
+        }
+        
+        # Aplicar estilo global a la ventana
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {self.theme['bg_main']};
+                color: {self.theme['text_primary']};
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 11px;
+            }}
+            
+            QGroupBox {{
+                background-color: {self.theme['bg_group']};
+                border: 2px solid {self.theme['secondary']};
+                border-radius: 8px;
+                margin-top: 10px;
+                padding: 15px;
+                font-weight: bold;
+            }}
+            
+            QGroupBox::title {{
+                color: {self.theme['primary']};
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            
+            QCheckBox {{
+                spacing: 8px;
+                padding: 5px;
+            }}
+            
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border-radius: 3px;
+                border: 2px solid {self.theme['secondary']};
+            }}
+            
+            QCheckBox::indicator:checked {{
+                background-color: {self.theme['accent']};
+                border-color: {self.theme['accent']};
+            }}
+            
+            QPushButton {{
+                padding: 8px 15px;
+                border-radius: 5px;
+                border: none;
+                font-weight: bold;
+            }}
+            
+            QPushButton:hover {{
+                opacity: 0.9;
+            }}
+            
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: {self.theme['bg_hover']};
+                border-radius: 3px;
+            }}
+            
+            QSlider::handle:horizontal {{
+                background: {self.theme['accent']};
+                width: 16px;
+                margin: -5px 0;
+                border-radius: 8px;
+            }}
+            
+            QComboBox {{
+                padding: 5px;
+                border: 2px solid {self.theme['secondary']};
+                border-radius: 5px;
+                background: white;
+            }}
+            
+            QSpinBox {{
+                padding: 5px;
+                border: 2px solid {self.theme['secondary']};
+                border-radius: 5px;
+            }}
+        """)
         
     def init_ui(self):
         """Inicializa la interfaz del panel de control"""
         self.setWindowTitle("Control de Composición")
         self.setGeometry(100, 100, 450, 700)
         
+        # Aplicar tema de colores
+        self.setup_theme()
+        
         # Layout principal
         main_layout = QVBoxLayout()
         main_layout.setSpacing(10)
         
-        # Título
-        title = QLabel("🎨 Composition Overlay Control")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
-        title.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title)
+        
         
         # Grupo: Guías de Composición
         guides_group = self.create_guides_group()
@@ -60,7 +169,13 @@ class ControlPanel(QWidget):
         shortcuts_info = QLabel(
             "💡 Atajos: Clic derecho en overlay para menú contextual"
         )
-        shortcuts_info.setStyleSheet("padding: 10px; background-color: #f0f0f0; border-radius: 5px;")
+        shortcuts_info.setStyleSheet(f"""
+            padding: 12px; 
+            background-color: {self.theme['accent']}; 
+            color: {self.theme['text_light']};
+            border-radius: 5px;
+            font-weight: bold;
+        """)
         shortcuts_info.setWordWrap(True)
         main_layout.addWidget(shortcuts_info)
         
@@ -229,16 +344,36 @@ class ControlPanel(QWidget):
         # Botón toggle overlay
         self.toggle_overlay_btn = QPushButton("👁️ Ocultar Overlay")
         self.toggle_overlay_btn.clicked.connect(self.quick_toggle_overlay)
-        self.toggle_overlay_btn.setStyleSheet(
-            "QPushButton { padding: 10px; font-size: 14px; font-weight: bold; }"
-        )
+        self.toggle_overlay_btn.setStyleSheet(f"""
+            QPushButton {{ 
+                padding: 12px; 
+                font-size: 14px; 
+                font-weight: bold;
+                background-color: {self.theme['btn_primary_bg']};
+                color: {self.theme['text_light']};
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme['btn_primary_hover']};
+            }}
+        """)
         
         # Botón cerrar
         close_btn = QPushButton("❌ Salir")
         close_btn.clicked.connect(self.close_application)
-        close_btn.setStyleSheet(
-            "QPushButton { padding: 10px; font-size: 14px; }"
-        )
+        close_btn.setStyleSheet(f"""
+            QPushButton {{ 
+                padding: 12px; 
+                font-size: 14px;
+                font-weight: bold;
+                background-color: {self.theme['btn_danger_bg']};
+                color: {self.theme['text_light']};
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme['btn_danger_hover']};
+            }}
+        """)
         
         layout.addWidget(self.toggle_overlay_btn)
         layout.addWidget(close_btn)
